@@ -262,37 +262,58 @@ class IMAPService {
 
   /**
    * Supprime un email du serveur IMAP
+   * Crée sa propre connexion dédiée pour éviter les conflits
    * @param messageId - L'ID du message à supprimer
    */
   async deleteEmailFromServer(messageId: string): Promise<void> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // Se connecter si pas encore connecté
-        if (!this.imap) {
-          console.log('🔌 Connexion IMAP pour suppression...');
-          await this.connect();
-        }
+    return new Promise((resolve, reject) => {
+      console.log(`🗑️  Suppression email IMAP (MessageID: ${messageId})`);
 
-        console.log(`🗑️  Recherche de l'email à supprimer (MessageID: ${messageId})`);
+      // Créer une connexion IMAP dédiée pour la suppression
+      const deleteImap = new Imap({
+        user: env.IMAP_USER,
+        password: env.IMAP_PASSWORD,
+        host: env.IMAP_HOST,
+        port: env.IMAP_PORT,
+        tls: env.IMAP_SECURE,
+        tlsOptions: { rejectUnauthorized: false },
+      });
+
+      // Timeout de sécurité (30 secondes max)
+      const timeout = setTimeout(() => {
+        try {
+          deleteImap.end();
+        } catch (e) {}
+        reject(new Error('Timeout lors de la suppression IMAP'));
+      }, 30000);
+
+      deleteImap.once('ready', () => {
+        console.log('🔌 Connexion IMAP dédiée établie');
 
         // Ouvrir la boîte de réception
-        this.imap!.openBox('INBOX', false, (err: any) => {
+        deleteImap.openBox('INBOX', false, (err: any) => {
           if (err) {
+            clearTimeout(timeout);
             console.error('❌ Erreur ouverture INBOX:', err);
+            deleteImap.end();
             reject(err);
             return;
           }
 
           // Rechercher l'email par MESSAGE-ID header
-          this.imap!.search([['HEADER', 'MESSAGE-ID', messageId]], (err: any, results: any) => {
+          deleteImap.search([['HEADER', 'MESSAGE-ID', messageId]], (err: any, results: any) => {
             if (err) {
+              clearTimeout(timeout);
               console.error('❌ Erreur recherche email:', err);
+              deleteImap.end();
               reject(err);
               return;
             }
 
             if (results.length === 0) {
-              console.log('⚠️  Email non trouvé sur le serveur (peut-être déjà supprimé)');
+              clearTimeout(timeout);
+              console.log('⚠️  Email non trouvé sur le serveur (déjà supprimé ou messageId incorrect)');
+              deleteImap.end();
               resolve();
               return;
             }
@@ -300,31 +321,44 @@ class IMAPService {
             console.log(`📧 Email trouvé (UID: ${results[0]}), suppression...`);
 
             // Marquer l'email avec le flag \Deleted
-            this.imap!.addFlags(results, '\\Deleted', (err: any) => {
+            deleteImap.addFlags(results, '\\Deleted', (err: any) => {
               if (err) {
+                clearTimeout(timeout);
                 console.error('❌ Erreur marquage email:', err);
+                deleteImap.end();
                 reject(err);
                 return;
               }
 
+              console.log('🏴 Flag \\Deleted ajouté, expunge...');
+
               // Expunge pour supprimer définitivement
-              this.imap!.expunge((err: any) => {
+              deleteImap.expunge((err: any) => {
+                clearTimeout(timeout);
+
                 if (err) {
                   console.error('❌ Erreur expunge:', err);
+                  deleteImap.end();
                   reject(err);
                   return;
                 }
 
                 console.log('✅ Email supprimé du serveur IMAP');
+                deleteImap.end();
                 resolve();
               });
             });
           });
         });
-      } catch (error) {
-        console.error('❌ Erreur connexion IMAP pour suppression:', error);
-        reject(error);
-      }
+      });
+
+      deleteImap.once('error', (err: Error) => {
+        clearTimeout(timeout);
+        console.error('❌ Erreur connexion IMAP:', err);
+        reject(err);
+      });
+
+      deleteImap.connect();
     });
   }
 }
