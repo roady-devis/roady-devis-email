@@ -52,9 +52,14 @@ class IMAPService {
 
   async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
-      if (this.isConnected) {
-        resolve();
-        return;
+      // Toujours fermer l'ancienne connexion si elle existe
+      if (this.imap && this.isConnected) {
+        try {
+          this.imap.end();
+        } catch (e) {
+          // Ignorer les erreurs de fermeture
+        }
+        this.isConnected = false;
       }
 
       // Créer une nouvelle connexion à chaque fois
