@@ -12,7 +12,7 @@ services:
     environment:
       MONGO_INITDB_DATABASE: roady_email_dev
       MONGO_INITDB_ROOT_USERNAME: email_admin
-      MONGO_INITDB_ROOT_PASSWORD: dev_password_change_me
+      MONGO_INITDB_ROOT_PASSWORD: dev_email_password_2024
     ports:
       - "27019:27017"
     volumes:
@@ -20,7 +20,7 @@ services:
     networks:
       - roady-network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "-u", "email_admin", "-p", "dev_password_change_me", "--authenticationDatabase", "admin"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "-u", "email_admin", "-p", "dev_email_password_2024", "--authenticationDatabase", "admin"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -10,6 +10,10 @@ class IMAPService {
   private isConnected = false;
 
   constructor() {
+    // Ne pas créer l'instance ici, on la crée à chaque connect()
+  }
+
+  private createConnection() {
     this.imap = new Imap({
       user: env.IMAP_USER,
       password: env.IMAP_PASSWORD,
@@ -51,6 +55,9 @@ class IMAPService {
         resolve();
         return;
       }
+
+      // Créer une nouvelle connexion à chaque fois
+      this.createConnection();
 
       if (!this.imap) {
         reject(new Error('IMAP non initialisé'));
@@ -198,7 +205,7 @@ class IMAPService {
       // Sauvegarder en base de données
       const email = new Email({
         from: parsed.from?.text || '',
-        to: parsed.to?.value.map((addr) => addr.address || '') || [],
+        to: parsed.to ? (Array.isArray(parsed.to) ? parsed.to[0].value.map((addr) => addr.address || "") : parsed.to.value.map((addr) => addr.address || "")) : [],
         subject: parsed.subject || '',
         body: parsed.text || '',
         bodyHtml: parsed.html || undefined,
