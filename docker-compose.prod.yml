@@ -1,0 +1,62 @@
+# ==========================================
+# PROD Environment - Email Service
+# ==========================================
+
+name: roady-email-prod
+
+services:
+  mongodb-email:
+    image: mongo:8.0
+    container_name: roady-mongodb-email-prod
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: roady_email
+      MONGO_INITDB_ROOT_USERNAME: email_admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD}
+    ports:
+      - "27020:27017"
+    volumes:
+      - mongodb_email_prod:/data/db
+    networks:
+      - roady-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "-u", "email_admin", "-p", "${MONGODB_PASSWORD}", "--authenticationDatabase", "admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app-email:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: roady-email-prod
+    restart: unless-stopped
+    expose:
+      - "3003"
+    environment:
+      - PORT=3003
+    env_file:
+      - .env.prod
+    depends_on:
+      mongodb-email:
+        condition: service_healthy
+    networks:
+      - roady-network
+    volumes:
+      - ./attachments:/app/attachments
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  roady-network:
+    external: true
+    name: roady-network
+
+volumes:
+  mongodb_email_prod:
+    name: roady-email-prod_mongodb_data
+    driver: local
