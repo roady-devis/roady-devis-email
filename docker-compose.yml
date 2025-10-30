@@ -1,0 +1,64 @@
+# Docker Compose pour environnement DEV (serveur)
+# Déployé automatiquement via GitHub Actions
+
+services:
+  mongodb:
+    image: mongo:8.0
+    container_name: roady-email-mongodb
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGODB_DB}
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - roady-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: roady-email
+    restart: always
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${PORT}
+      MONGODB_URI: ${MONGODB_URI}
+      IMAP_HOST: ${IMAP_HOST}
+      IMAP_PORT: ${IMAP_PORT}
+      IMAP_USER: ${IMAP_USER}
+      IMAP_PASSWORD: ${IMAP_PASSWORD}
+      IMAP_SECURE: ${IMAP_SECURE}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      MAIN_APP_URL: ${MAIN_APP_URL}
+      EMAIL_SERVICE_API_KEY: ${EMAIL_SERVICE_API_KEY}
+      CHECK_INTERVAL_MS: ${CHECK_INTERVAL_MS}
+    volumes:
+      - ./attachments:/app/attachments
+    networks:
+      - roady-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  roady-network:
+    external: true
+
+volumes:
+  mongodb_data:

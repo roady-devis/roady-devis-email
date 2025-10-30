@@ -1,0 +1,24 @@
+# Docker Compose pour développement LOCAL
+# Lance uniquement MongoDB, le service tourne avec npm run dev
+
+services:
+  mongodb:
+    image: mongo:8.0
+    container_name: roady-email-mongodb-local
+    restart: always
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: roady_email
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongodb_data:

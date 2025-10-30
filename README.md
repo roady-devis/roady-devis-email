@@ -1,110 +1,104 @@
-# 📧 Roady Devis - Service Email
+# Roady Devis - Email Service
 
-Service de gestion des emails pour Roady Devis : réception IMAP, envoi SMTP et relances automatiques.
+Microservice de gestion des emails (IMAP/SMTP) pour Roady Devis.
 
-## 🎯 Fonctionnalités
+## Architecture
 
-- ✉️ **Envoi d'emails** via SMTP
-- 📥 **Réception d'emails** via IMAP (à implémenter)
-- 🔄 **Relances automatiques** (à implémenter)
-- 📎 **Gestion des pièces jointes**
-- 🗄️ **Stockage MongoDB** pour l'historique
+- **Backend**: Express.js + TypeScript
+- **Base de données**: MongoDB 8.0
+- **IMAP**: Récupération automatique des emails
+- **SMTP**: Envoi d'emails
 
-## 🏗️ Architecture
+## Fonctionnalités
 
-```
-roady-devis-email/
-├── src/
-│   ├── config/         # Configuration (env, database)
-│   ├── models/         # Modèles MongoDB
-│   ├── services/       # Services (SMTP, IMAP)
-│   ├── routes/         # Routes API
-│   └── index.ts        # Point d'entrée
-├── docker-compose.dev.yml
-├── docker-compose.prod.yml
-└── Dockerfile
-```
+- Récupération automatique des emails via IMAP
+- Gestion des pièces jointes (PDF)
+- Suppression d'emails du serveur IMAP
+- Webhook vers l'application principale lors de réception d'email
+- API REST pour accéder aux emails et pièces jointes
 
-## 🚀 Démarrage
+## Prérequis
 
-### Développement
+- Node.js 20+
+- Docker & Docker Compose
+- npm
+
+## Développement Local
+
+### 1. Lancer MongoDB
 
 ```bash
-# Install dependencies
+docker compose -f docker-compose.local.yml up -d
+```
+
+### 2. Installer les dépendances
+
+```bash
 npm install
+```
 
-# Créer .env.dev à partir de .env.example
-cp .env.example .env.dev
+### 3. Lancer le service
 
-# Démarrer avec Docker
-docker compose -f docker-compose.dev.yml up -d
-
-# Ou en local
+```bash
 npm run dev
 ```
 
-### Production
+Le service sera accessible sur http://localhost:3002
+
+## API Endpoints
+
+### GET /health
+Healthcheck du service
+
+### GET /api/email/received
+Liste des emails reçus
+
+### GET /api/email/:id
+Détails d'un email
+
+### GET /api/email/:id/attachment/:filename
+Télécharger une pièce jointe
+
+### DELETE /api/email/:id
+Supprimer un email (DB + serveur IMAP)
+
+### POST /api/inbox/check
+Forcer la vérification des nouveaux emails
+
+## Configuration
+
+Le service vérifie automatiquement les nouveaux emails toutes les 60 secondes (configurable via `CHECK_INTERVAL_MS`).
+
+Lors de la réception d'un email avec pièce jointe, un webhook est envoyé à l'application principale (`MAIN_APP_URL/api/webhooks/email-received`).
+
+## Déploiement
+
+Le déploiement sur l'environnement DEV se fait automatiquement via GitHub Actions lors d'un push sur la branche `develop`.
+
+## Microservices
+
+Ce microservice fait partie de l'architecture Roady Devis :
+
+- **roady-devis**: Application principale Next.js
+- **roady-devis-email** (ce repo): Service email (IMAP/SMTP)
+- **roady-devis-infra**: Infrastructure nginx
+
+## Scripts Disponibles
 
 ```bash
-# Créer .env.prod
-cp .env.example .env.prod
-
-# Démarrer avec Docker
-docker compose -f docker-compose.prod.yml up -d
+npm run dev          # Lancer en mode développement
+npm run build        # Build de production
+npm run start        # Lancer en mode production
+npm run lint         # Vérifier le code
 ```
 
-## 📡 API
+## Technologies
 
-### Health Check
-```bash
-GET /health
-```
+- **Backend**: Express.js, TypeScript
+- **Database**: MongoDB 8.0, Mongoose
+- **Email**: node-imap, nodemailer
+- **Deployment**: Docker, GitHub Actions
 
-### Envoyer un email
-```bash
-POST /api/email/send
-{
-  "to": "client@example.com",
-  "subject": "Test",
-  "html": "<p>Hello</p>"
-}
-```
+## Licence
 
-### Lister les emails reçus
-```bash
-GET /api/email/received?limit=50&processed=false
-```
-
-## 🔧 Configuration
-
-Voir `.env.example` pour toutes les variables disponibles.
-
-### Ports
-
-- **DEV**: 3002 (app), 27019 (MongoDB)
-- **PROD**: 3003 (app), 27020 (MongoDB)
-
-## 📦 Technologies
-
-- **Node.js 20** + **TypeScript**
-- **Express** pour l'API REST
-- **MongoDB** + **Mongoose** pour la persistance
-- **Nodemailer** pour l'envoi SMTP
-- **IMAP** pour la réception (à implémenter)
-- **Docker** + **Docker Compose**
-
-## 🔒 Sécurité
-
-- Validation Zod des variables d'environnement
-- Helmet pour les headers HTTP
-- CORS configuré
-- API Key pour les callbacks
-
-## 📝 TODO
-
-- [ ] Implémenter le polling IMAP
-- [ ] Parser les emails et détecter les devis
-- [ ] Système de relances automatiques
-- [ ] Tests unitaires
-- [ ] Documentation API complète
-
+Propriétaire - Roady Sollies

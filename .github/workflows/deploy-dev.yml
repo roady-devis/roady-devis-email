@@ -1,0 +1,86 @@
+name: Deploy Email Service DEV
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+jobs:
+  deploy-dev:
+    name: Deploy Email Service to DEV
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Create .env file with secrets
+        run: |
+          cat > .env.tmp << 'EOF'
+          NODE_ENV=development
+          PORT=3002
+          MONGODB_USER=email_admin
+          MONGODB_PASSWORD=${{ secrets.DEV_EMAIL_MONGODB_PASSWORD }}
+          MONGODB_DB=roady_email
+          MONGODB_URI=mongodb://email_admin:${{ secrets.DEV_EMAIL_MONGODB_PASSWORD }}@mongodb:27017/roady_email?authSource=admin
+          IMAP_HOST=ssl0.ovh.net
+          IMAP_PORT=993
+          IMAP_USER=devis@roadysollies.fr
+          IMAP_PASSWORD=${{ secrets.DEV_IMAP_PASSWORD }}
+          IMAP_SECURE=true
+          SMTP_HOST=ssl0.ovh.net
+          SMTP_PORT=465
+          SMTP_USER=noreply@roadysollies.fr
+          SMTP_PASSWORD=${{ secrets.DEV_SMTP_PASSWORD }}
+          MAIN_APP_URL=http://roady-app:3000
+          EMAIL_SERVICE_API_KEY=${{ secrets.DEV_EMAIL_SERVICE_API_KEY }}
+          CHECK_INTERVAL_MS=60000
+          EOF
+
+      - name: Deploy to DEV server
+        run: |
+          scp -i ~/.ssh/id_ed25519 .env.tmp ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:~/roady-email/.env
+
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'ENDSSH'
+            cd ~/roady-email
+
+            echo "🔄 Pulling latest code..."
+            git fetch origin
+            git checkout develop
+            git pull origin develop
+
+            echo "🌐 Ensuring Docker network exists..."
+            docker network create roady-network 2>/dev/null || echo "Network already exists"
+
+            echo "🛑 Stopping old services..."
+            docker compose down || true
+
+            echo "🔧 Building and starting services..."
+            docker compose up -d --build
+
+            echo "⏳ Waiting for services to be healthy..."
+            sleep 20
+
+            echo "🔍 Checking services status..."
+            docker compose ps
+
+            echo "✅ Email Service deployment complete!"
+          ENDSSH
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f ~/.ssh/id_ed25519
+          rm -f .env.tmp
+
+      - name: Health check
+        run: |
+          sleep 5
+          echo "✅ Email Service deployed!"
