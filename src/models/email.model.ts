@@ -3,8 +3,8 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IEmail extends Document {
   from: string;
   to: string[];
-  subject: string;
-  body: string;
+  subject?: string;
+  body?: string;
   bodyHtml?: string;
   receivedAt: Date;
   attachments: Array<{
@@ -27,8 +27,8 @@ const emailSchema = new Schema<IEmail>(
   {
     from: { type: String, required: true, index: true },
     to: [{ type: String, required: true }],
-    subject: { type: String, required: true },
-    body: { type: String, required: true },
+    subject: { type: String, required: false, default: '' },
+    body: { type: String, required: false, default: '' },
     bodyHtml: String,
     receivedAt: { type: Date, default: Date.now, index: true },
     attachments: [
