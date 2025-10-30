@@ -97,24 +97,26 @@ class IMAPService {
         console.log(`📬 Boîte ouverte: ${box.messages.total} messages, ${box.messages.new} nouveaux`);
 
         if (box.messages.total === 0) {
+          console.log('📭 Boîte vide');
           resolve();
           return;
         }
 
-        // Rechercher les emails non lus
-        this.imap!.search(['UNSEEN'], async (err, results) => {
+        // Rechercher TOUS les emails (pas seulement les non lus)
+        // On récupère tous les emails depuis le début
+        this.imap!.search(['ALL'], async (err, results) => {
           if (err) {
             reject(err);
             return;
           }
 
           if (results.length === 0) {
-            console.log('📭 Aucun email non lu');
+            console.log('📭 Aucun email trouvé');
             resolve();
             return;
           }
 
-          console.log(`📨 ${results.length} emails non lus trouvés`);
+          console.log(`📨 ${results.length} emails trouvés dans la boîte`);
 
           try {
             await this.processMessages(results);
@@ -205,6 +207,28 @@ class IMAPService {
           });
 
           console.log(`   💾 Sauvegardé: ${filename} (${attachment.size} bytes)`);
+        }
+      }
+
+      // Vérifier si l'email existe déjà (par messageId)
+      const messageId = parsed.messageId;
+      if (messageId) {
+        const existingEmail = await Email.findOne({ 'metadata.messageId': messageId });
+        if (existingEmail) {
+          console.log(`⏭️  Email déjà présent en base (MessageID: ${messageId})`);
+          return;
+        }
+      } else {
+        console.log(`⚠️  Email sans messageId, vérification par sujet/date`);
+        // Si pas de messageId, vérifier par sujet + date pour éviter doublons
+        const existingEmail = await Email.findOne({
+          subject: parsed.subject || '',
+          receivedAt: parsed.date || new Date(),
+          from: parsed.from?.text || ''
+        });
+        if (existingEmail) {
+          console.log(`⏭️  Email similaire déjà présent en base`);
+          return;
         }
       }
 
