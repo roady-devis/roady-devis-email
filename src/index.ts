@@ -6,6 +6,7 @@ import { env } from "./config/env";
 import { connectDatabase } from "./config/database";
 import { emailRoutes } from "./routes/email.routes";
 import { smtpService } from "./services/smtp.service";
+import { emailCheckerJob } from "./jobs/email-checker.job";
 
 const app = express();
 
@@ -36,6 +37,9 @@ async function start() {
     // Vérification SMTP
     await smtpService.verifyConnection();
 
+    // Démarrage du polling IMAP
+    emailCheckerJob.start();
+
     // Démarrage serveur
     app.listen(env.PORT, env.HOST, () => {
       console.log(`🚀 Service Email démarré sur ${env.HOST}:${env.PORT}`);
@@ -47,5 +51,18 @@ async function start() {
     process.exit(1);
   }
 }
+
+// Gestion propre de l'arrêt
+process.on('SIGTERM', () => {
+  console.log('📴 SIGTERM reçu, arrêt gracieux...');
+  emailCheckerJob.stop();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('📴 SIGINT reçu, arrêt gracieux...');
+  emailCheckerJob.stop();
+  process.exit(0);
+});
 
 start();

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { smtpService } from "../services/smtp.service";
 import { Email } from "../models/email.model";
+import { emailCheckerJob } from "../jobs/email-checker.job";
 
 const router = Router();
 
@@ -59,6 +60,19 @@ router.get("/:id", async (req, res) => {
     }
 
     res.json(email);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Déclencher manuellement le check des emails
+router.post("/check-now", async (req, res) => {
+  try {
+    await emailCheckerJob.checkNow();
+    res.json({
+      success: true,
+      message: "Check des emails déclenché",
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
