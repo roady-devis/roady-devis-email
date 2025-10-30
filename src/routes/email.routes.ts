@@ -3,6 +3,7 @@ import { smtpService } from "../services/smtp.service";
 import { Email } from "../models/email.model";
 import { emailCheckerJob } from "../jobs/email-checker.job";
 import { apiKeyAuth } from "../middleware/auth.middleware";
+import { imapService } from "../services/imap.service";
 import path from "path";
 import fs from "fs";
 
@@ -133,6 +134,51 @@ router.patch("/:id/processed", async (req, res) => {
     }
 
     res.json(email);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Supprimer un email (de la base ET du serveur)
+router.delete("/:id", async (req, res) => {
+  try {
+    const email = await Email.findById(req.params.id);
+
+    if (!email) {
+      return res.status(404).json({ error: "Email non trouvé" });
+    }
+
+    // 1. Supprimer du serveur IMAP si messageId disponible
+    if (email.metadata?.messageId) {
+      try {
+        console.log(`🗑️  Suppression de l'email du serveur IMAP...`);
+        await imapService.deleteEmailFromServer(email.metadata.messageId);
+      } catch (imapError: any) {
+        console.error('⚠️  Erreur suppression IMAP (email supprimé de la DB quand même):', imapError.message);
+      }
+    }
+
+    // 2. Supprimer les pièces jointes du disque
+    if (email.attachments && email.attachments.length > 0) {
+      for (const attachment of email.attachments) {
+        if (fs.existsSync(attachment.path)) {
+          try {
+            fs.unlinkSync(attachment.path);
+            console.log(`🗑️  Pièce jointe supprimée: ${attachment.filename}`);
+          } catch (fsError) {
+            console.error(`⚠️  Impossible de supprimer: ${attachment.filename}`);
+          }
+        }
+      }
+    }
+
+    // 3. Supprimer de la base de données
+    await Email.findByIdAndDelete(req.params.id);
+
+    res.json({
+      success: true,
+      message: "Email supprimé avec succès (DB + serveur + pièces jointes)",
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
