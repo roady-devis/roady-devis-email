@@ -265,60 +265,66 @@ class IMAPService {
    * @param messageId - L'ID du message à supprimer
    */
   async deleteEmailFromServer(messageId: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (!this.imap) {
-        reject(new Error('IMAP non connecté'));
-        return;
-      }
-
-      console.log(`🗑️  Recherche de l'email à supprimer (MessageID: ${messageId})`);
-
-      // Ouvrir la boîte de réception
-      this.imap.openBox('INBOX', false, (err: any) => {
-        if (err) {
-          console.error('❌ Erreur ouverture INBOX:', err);
-          reject(err);
-          return;
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Se connecter si pas encore connecté
+        if (!this.imap) {
+          console.log('🔌 Connexion IMAP pour suppression...');
+          await this.connect();
         }
 
-        // Rechercher l'email par MESSAGE-ID header
-        this.imap!.search([['HEADER', 'MESSAGE-ID', messageId]], (err: any, results: any) => {
+        console.log(`🗑️  Recherche de l'email à supprimer (MessageID: ${messageId})`);
+
+        // Ouvrir la boîte de réception
+        this.imap!.openBox('INBOX', false, (err: any) => {
           if (err) {
-            console.error('❌ Erreur recherche email:', err);
+            console.error('❌ Erreur ouverture INBOX:', err);
             reject(err);
             return;
           }
 
-          if (results.length === 0) {
-            console.log('⚠️  Email non trouvé sur le serveur (peut-être déjà supprimé)');
-            resolve();
-            return;
-          }
-
-          console.log(`📧 Email trouvé (UID: ${results[0]}), suppression...`);
-
-          // Marquer l'email avec le flag \Deleted
-          this.imap!.addFlags(results, '\\Deleted', (err: any) => {
+          // Rechercher l'email par MESSAGE-ID header
+          this.imap!.search([['HEADER', 'MESSAGE-ID', messageId]], (err: any, results: any) => {
             if (err) {
-              console.error('❌ Erreur marquage email:', err);
+              console.error('❌ Erreur recherche email:', err);
               reject(err);
               return;
             }
 
-            // Expunge pour supprimer définitivement
-            this.imap!.expunge((err: any) => {
+            if (results.length === 0) {
+              console.log('⚠️  Email non trouvé sur le serveur (peut-être déjà supprimé)');
+              resolve();
+              return;
+            }
+
+            console.log(`📧 Email trouvé (UID: ${results[0]}), suppression...`);
+
+            // Marquer l'email avec le flag \Deleted
+            this.imap!.addFlags(results, '\\Deleted', (err: any) => {
               if (err) {
-                console.error('❌ Erreur expunge:', err);
+                console.error('❌ Erreur marquage email:', err);
                 reject(err);
                 return;
               }
 
-              console.log('✅ Email supprimé du serveur IMAP');
-              resolve();
+              // Expunge pour supprimer définitivement
+              this.imap!.expunge((err: any) => {
+                if (err) {
+                  console.error('❌ Erreur expunge:', err);
+                  reject(err);
+                  return;
+                }
+
+                console.log('✅ Email supprimé du serveur IMAP');
+                resolve();
+              });
             });
           });
         });
-      });
+      } catch (error) {
+        console.error('❌ Erreur connexion IMAP pour suppression:', error);
+        reject(error);
+      }
     });
   }
 }
