@@ -2,6 +2,7 @@ import Imap from 'imap';
 import { simpleParser, ParsedMail } from 'mailparser';
 import { env } from '../config/env';
 import { Email } from '../models/email.model';
+import { webhookService } from './webhook.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -221,6 +222,9 @@ class IMAPService {
 
       await email.save();
       console.log(`✅ Email sauvegardé en base de données (ID: ${email._id})`);
+
+      // Notifier l'application principale
+      await webhookService.notifyEmailReceived(email);
     } catch (error) {
       console.error('❌ Erreur parsing email:', error);
       throw error;
