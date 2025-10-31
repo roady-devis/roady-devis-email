@@ -1,7 +1,10 @@
 import { z } from 'zod';
 import dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config();
+// Charge .env.local en priorité (local dev), puis .env (fallback)
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+dotenv.config(); // Fallback pour les variables non définies
 
 const envSchema = z.object({
   // Environment
