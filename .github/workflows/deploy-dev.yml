@@ -40,9 +40,14 @@ jobs:
           SMTP_SECURE=true
           SMTP_USER=${{ secrets.SMTP_USER }}
           SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM_EMAIL=${{ secrets.SMTP_FROM_EMAIL }}
+          SMTP_FROM_NAME=${{ secrets.SMTP_FROM_NAME }}
           MAIN_APP_URL=${{ secrets.MAIN_APP_URL }}
           API_SECRET_KEY=${{ secrets.API_SECRET_KEY }}
+          EMAIL_SERVICE_API_KEY=${{ secrets.EMAIL_SERVICE_API_KEY }}
+          CHECK_INTERVAL_MS=60000
           IMAP_CHECK_INTERVAL_MS=60000
+          ATTACHMENTS_PATH=attachments
           EOF
 
       - name: Deploy to DEV server
