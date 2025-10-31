@@ -193,20 +193,21 @@ class IMAPService {
         console.log(`   📎 ${parsed.attachments.length} pièce(s) jointe(s)`);
 
         for (const attachment of parsed.attachments) {
-          const filename = attachment.filename || `attachment_${Date.now()}`;
-          const filepath = path.join(attachmentsDir, `${Date.now()}_${filename}`);
+          const originalFilename = attachment.filename || `attachment_${Date.now()}`;
+          const savedFilename = `${Date.now()}_${originalFilename}`;
+          const filepath = path.join(attachmentsDir, savedFilename);
 
           // Sauvegarder la pièce jointe
           fs.writeFileSync(filepath, attachment.content);
 
           attachments.push({
-            filename: filename,
+            filename: savedFilename, // Utiliser le nom complet avec timestamp
             path: filepath,
             size: attachment.size,
             contentType: attachment.contentType,
           });
 
-          console.log(`   💾 Sauvegardé: ${filename} (${attachment.size} bytes)`);
+          console.log(`   💾 Sauvegardé: ${savedFilename} (${attachment.size} bytes)`);
         }
       }
 
